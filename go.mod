@@ -3,6 +3,7 @@ module github.com/caioalonso/caioalonso.com
 go 1.17
 
 require (
+	github.com/gorilla/mux v1.8.0
 	github.com/yuin/goldmark v1.4.6
 	github.com/yuin/goldmark-meta v1.1.0
 )

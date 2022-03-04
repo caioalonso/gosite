@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/parser"
@@ -34,15 +35,42 @@ type Post struct {
 	Aliases     []string
 }
 
-func main() {
-	head := readFile("head.html")
-	footer := readFile("footer.html")
-	index := readFile("index.html")
-	learning := readFile("learning.html")
+var postsAliases map[string]Post
+var index string
+var fsHandle http.Handler
 
-	learning = head + learning + footer
+func PostsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	post := vars["post"]
 
-	var posts []Post
+	_, err := fmt.Fprintf(w, postsAliases["/posts/"+post].HTML)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func PostsWithDateHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	alias := "/" + vars["year"] + "/" + vars["month"] + "/" + vars["day"] + "/" + vars["post"]
+
+	_, err := fmt.Fprintf(w, postsAliases[alias].HTML)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func catchAllHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+		_, err := fmt.Fprintf(w, index)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		fsHandle.ServeHTTP(w, r)
+	}
+}
+
+func readPosts(head string, footer string) (posts []Post) {
 	err := filepath.Walk("posts", func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			posts = append(posts, Post{Filename: path})
@@ -90,6 +118,17 @@ func main() {
 		return posts[i].Date > posts[j].Date
 	})
 
+	return
+}
+
+func main() {
+	r := mux.NewRouter()
+
+	head := readFile("head.html")
+	footer := readFile("footer.html")
+	learning := head + readFile("learning.html") + footer
+	posts := readPosts(head, footer)
+
 	index = head
 	index += "<ul class=posts>"
 	for _, post := range posts {
@@ -98,26 +137,26 @@ func main() {
 	}
 	index += "</ul>" + footer
 
-	for i, post := range posts {
+	postsAliases = make(map[string]Post)
+	for _, post := range posts {
 		for _, alias := range post.Aliases {
-			http.HandleFunc(alias, func(w http.ResponseWriter, r *http.Request) {
-				fmt.Println(i)
-				_, err := fmt.Fprintf(w, post.HTML)
-				if err != nil {
-					log.Fatal(err)
-				}
-			})
+			postsAliases[alias] = post
 		}
 	}
 
-	http.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/posts/{post}", PostsHandler)
+	r.HandleFunc("/posts/{post}/", PostsHandler)
+	// Legacy URLs I want to maintain
+	r.HandleFunc("/{year}/{month}/{day}/{post}", PostsWithDateHandler)
+
+	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, learning)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
 
-	http.HandleFunc("/learning/", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/learning/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, learning)
 		if err != nil {
 			log.Fatal(err)
@@ -129,21 +168,16 @@ func main() {
 		log.Fatal(err)
 	}
 	staticDir := filepath.Join(homeDir, "public_html")
-	fsHandle := http.FileServer(http.Dir(staticDir))
+	fsHandle = http.FileServer(http.Dir(staticDir))
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-			_, err := fmt.Fprintf(w, index)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			fsHandle.ServeHTTP(w, r)
-		}
-	})
+	r.PathPrefix("/").HandlerFunc(catchAllHandler)
 
-	err = http.ListenAndServe(":5050", nil)
-	if err != nil {
-		log.Fatal(err)
+	srv := &http.Server{
+		Handler:      r,
+		Addr:         "127.0.0.1:8000",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
 	}
+
+	log.Fatal(srv.ListenAndServe())
 }
