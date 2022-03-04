@@ -16,11 +16,6 @@ import (
 	"time"
 )
 
-func readPosts() (posts []Post) {
-
-	return
-}
-
 func readFile(fileName string) string {
 	content, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -55,7 +50,7 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	markdown := goldmark.New(
@@ -70,7 +65,7 @@ func main() {
 		var buf bytes.Buffer
 		context := parser.NewContext()
 		if err := markdown.Convert([]byte(posts[i].Markdown), &buf, parser.WithContext(context)); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		posts[i].HTML = head + buf.String() + footer
 		metadata := meta.Get(context)
@@ -79,7 +74,7 @@ func main() {
 		layout := "2006-01-02"
 		date, err := time.Parse(layout, posts[i].Date)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		posts[i].LegibleDate = date.Format("January 2, 2006")
 		switch reflect.TypeOf(metadata["aliases"]).Kind() {
@@ -103,31 +98,52 @@ func main() {
 	}
 	index += "</ul>" + footer
 
-	for _, post := range posts {
+	for i, post := range posts {
 		for _, alias := range post.Aliases {
 			http.HandleFunc(alias, func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, post.HTML)
+				fmt.Println(i)
+				_, err := fmt.Fprintf(w, post.HTML)
+				if err != nil {
+					log.Fatal(err)
+				}
 			})
 		}
 	}
 
 	http.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, learning)
+		_, err := fmt.Fprintf(w, learning)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	http.HandleFunc("/learning/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, learning)
+		_, err := fmt.Fprintf(w, learning)
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
-	fsHandle := http.FileServer(http.Dir("/home/caio/public_html"))
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	staticDir := filepath.Join(homeDir, "public_html")
+	fsHandle := http.FileServer(http.Dir(staticDir))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-			fmt.Fprintf(w, index)
+			_, err := fmt.Fprintf(w, index)
+			if err != nil {
+				log.Fatal(err)
+			}
 		} else {
 			fsHandle.ServeHTTP(w, r)
 		}
 	})
 
-	http.ListenAndServe(":5050", nil)
+	err = http.ListenAndServe(":5050", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
