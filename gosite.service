@@ -4,12 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=nobody
-Group=nobody
 Restart=always
+WorkingDirectory=/home/caio/dev/gosite
 ExecStart=/home/caio/dev/gosite/gosite
-StandardOutput=syslog
-SyslogIdentifier=gosite
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
