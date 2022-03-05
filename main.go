@@ -7,6 +7,7 @@ import (
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/parser"
+	"html"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -28,15 +30,17 @@ func readFile(fileName string) string {
 type Post struct {
 	Filename    string
 	Title       string
-	Date        string
-	LegibleDate string
+	Date        time.Time
 	Markdown    string
+	HTMLContent string
 	HTML        string
 	Aliases     []string
 }
 
 var postsAliases map[string]Post
 var index string
+var head string
+var footer string
 var fsHandle http.Handler
 
 func PostsHandler(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +69,8 @@ func catchAllHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
+	} else if strings.Contains(r.URL.Path, "/.") {
+		w.WriteHeader(http.StatusNotFound)
 	} else {
 		fsHandle.ServeHTTP(w, r)
 	}
@@ -95,16 +101,16 @@ func readPosts(head string, footer string) (posts []Post) {
 		if err := markdown.Convert([]byte(posts[i].Markdown), &buf, parser.WithContext(context)); err != nil {
 			log.Fatal(err)
 		}
-		posts[i].HTML = head + buf.String() + footer
 		metadata := meta.Get(context)
 		posts[i].Title = fmt.Sprintf("%v", metadata["title"])
-		posts[i].Date = fmt.Sprintf("%v", metadata["date"])
+		posts[i].HTMLContent = buf.String()
+		posts[i].HTML = assemblePage(posts[i].Title, posts[i].HTMLContent)
 		layout := "2006-01-02"
-		date, err := time.Parse(layout, posts[i].Date)
+		date, err := time.Parse(layout, fmt.Sprintf("%v", metadata["date"]))
 		if err != nil {
 			log.Fatal(err)
 		}
-		posts[i].LegibleDate = date.Format("January 2, 2006")
+		posts[i].Date = date
 		switch reflect.TypeOf(metadata["aliases"]).Kind() {
 		case reflect.Slice:
 			s := reflect.ValueOf(metadata["aliases"])
@@ -115,8 +121,38 @@ func readPosts(head string, footer string) (posts []Post) {
 	}
 
 	sort.SliceStable(posts, func(i, j int) bool {
-		return posts[i].Date > posts[j].Date
+		return posts[i].Date.Before(posts[j].Date)
 	})
+
+	return
+}
+
+func assemblePage(title, content string) string {
+	headWithTitle := strings.Replace(head, "$TITLE", title, 1)
+	return headWithTitle + content + footer
+}
+
+func atomFeed(posts []Post) (feed string) {
+	feed = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+	feed += "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n"
+	feed += "<title>Caio Alonso</title>\n"
+	feed += "<link href=\"https://caioalonso.com/feed.xml\" rel=\"self\" />\n"
+	feed += "<link href=\"https://caioalonso.com\" />\n"
+	feed += "<updated>" + posts[0].Date.Format("2006-01-02T15:04:05Z") + "</updated>\n"
+	feed += "<id>https://caioalonso.com/</id>\n"
+	feed += "<author>\n"
+	feed += "<name>Caio Alonso</name>\n"
+	feed += "</author>\n"
+	for i := range posts {
+		feed += "<entry>\n"
+		feed += "<title>" + posts[i].Title + "</title>\n"
+		feed += "<link href=\"https://caioalonso.com" + posts[i].Aliases[0] + "\"/>\n"
+		feed += "<id>https://caioalonso.com" + posts[i].Aliases[0] + "</id>\n"
+		feed += "<updated>" + posts[i].Date.Format("2006-01-02T15:04:05Z") + "</updated>\n"
+		feed += "<summary>" + html.EscapeString(posts[i].HTMLContent) + "</summary>\n"
+		feed += "</entry>\n"
+	}
+	feed += "</feed>\n"
 
 	return
 }
@@ -124,18 +160,20 @@ func readPosts(head string, footer string) (posts []Post) {
 func main() {
 	r := mux.NewRouter()
 
-	head := readFile("head.html")
-	footer := readFile("footer.html")
-	learning := head + readFile("learning.html") + footer
+	head = readFile("head.html")
+	footer = readFile("footer.html")
+	learning := assemblePage("Learning", readFile("learning.html"))
 	posts := readPosts(head, footer)
 
-	index = head
-	index += "<ul class=posts>"
+	postsList := "<ul class=posts>"
 	for _, post := range posts {
-		index += fmt.Sprintf(
-			"<li>\n<time datetime=%v>%v</time>\n<a href=%v>%v</a>\n</li>", post.Date, post.LegibleDate, post.Aliases[0], post.Title)
+		postsList += fmt.Sprintf(
+			"<li>\n<time datetime=%v>%v</time>\n<a href=%v>%v</a>\n</li>", post.Date.Format("2006-01-02"), post.Date.Format("January 2, 2006"), post.Aliases[0], post.Title)
 	}
-	index += "</ul>" + footer
+	postsList += "</ul>"
+	index = assemblePage("Caio Alonso", postsList)
+
+	atom := atomFeed(posts)
 
 	postsAliases = make(map[string]Post)
 	for _, post := range posts {
@@ -151,6 +189,20 @@ func main() {
 
 	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, learning)
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
+
+	r.HandleFunc("/index.xml", func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintf(w, atom)
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
+
+	r.HandleFunc("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintf(w, atom)
 		if err != nil {
 			log.Fatal(err)
 		}
