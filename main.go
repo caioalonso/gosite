@@ -42,6 +42,7 @@ var index string
 var head string
 var footer string
 var fsHandle http.Handler
+var markdown goldmark.Markdown
 
 func PostsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -76,6 +77,17 @@ func catchAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func parseMarkdown(markdownContent string) (HTML string, metadata map[string]interface{}) {
+	var buf bytes.Buffer
+	context := parser.NewContext()
+	if err := markdown.Convert([]byte(markdownContent), &buf, parser.WithContext(context)); err != nil {
+		log.Fatal(err)
+	}
+	metadata = meta.Get(context)
+	HTML = buf.String()
+	return
+}
+
 func readPosts() (posts []Post) {
 	err := filepath.Walk("posts", func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -87,23 +99,11 @@ func readPosts() (posts []Post) {
 		log.Fatal(err)
 	}
 
-	markdown := goldmark.New(
-		goldmark.WithExtensions(
-			meta.Meta,
-		),
-	)
-
 	for i := range posts {
 		posts[i].Markdown = readFile(posts[i].Filename)
-
-		var buf bytes.Buffer
-		context := parser.NewContext()
-		if err := markdown.Convert([]byte(posts[i].Markdown), &buf, parser.WithContext(context)); err != nil {
-			log.Fatal(err)
-		}
-		metadata := meta.Get(context)
+		var metadata map[string]interface{}
+		posts[i].HTMLContent, metadata = parseMarkdown(posts[i].Markdown)
 		posts[i].Title = fmt.Sprintf("%v", metadata["title"])
-		posts[i].HTMLContent = buf.String()
 		layout := "2006-01-02"
 		date, err := time.Parse(layout, fmt.Sprintf("%v", metadata["date"]))
 		if err != nil {
@@ -130,6 +130,11 @@ func readPosts() (posts []Post) {
 func assemblePage(title, content string) string {
 	headWithTitle := strings.Replace(head, "$TITLE", title, 1)
 	return headWithTitle + content + footer
+}
+
+func assembleGenericPage(title, content string) string {
+	content = "<article><h2>" + title + "</h2>" + content + "</article>"
+	return assemblePage(title, content)
 }
 
 func assemblePostPage(post *Post) string {
@@ -167,11 +172,18 @@ func atomFeed(posts []Post) (feed string) {
 }
 
 func main() {
+	markdown = goldmark.New(
+		goldmark.WithExtensions(
+			meta.Meta,
+		),
+	)
+
 	r := mux.NewRouter()
 
 	head = readFile("head.html")
 	footer = readFile("footer.html")
-	learning := assemblePage("Learning", readFile("learning.html"))
+	learning, _ := parseMarkdown(readFile("learning.md"))
+	learning = assembleGenericPage("Learning", learning)
 	posts := readPosts()
 
 	postsList := "<ul class=posts>"
@@ -196,13 +208,6 @@ func main() {
 	// Legacy URLs I want to maintain
 	r.HandleFunc("/{year}/{month}/{day}/{post}", PostsWithDateHandler)
 
-	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprintf(w, learning)
-		if err != nil {
-			log.Fatal(err)
-		}
-	})
-
 	r.HandleFunc("/index.xml", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, atom)
 		if err != nil {
@@ -212,6 +217,13 @@ func main() {
 
 	r.HandleFunc("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, atom)
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
+
+	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprintf(w, learning)
 		if err != nil {
 			log.Fatal(err)
 		}
