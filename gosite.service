@@ -1,0 +1,15 @@
+[Unit]
+Description=A simple HTTP server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nobody
+Restart=always
+ExecStart=/home/caio/dev/gosite/gosite
+StandardOutput=syslog
+SyslogIdentifier=gosite
+
+[Install]
+WantedBy=multi-user.target

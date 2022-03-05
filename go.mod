@@ -1,4 +1,4 @@
-module github.com/caioalonso/caioalonso.com
+module github.com/caioalonso/gosite
 
 go 1.17
 

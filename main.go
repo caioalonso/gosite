@@ -76,7 +76,7 @@ func catchAllHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readPosts(head string, footer string) (posts []Post) {
+func readPosts() (posts []Post) {
 	err := filepath.Walk("posts", func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			posts = append(posts, Post{Filename: path})
@@ -163,7 +163,7 @@ func main() {
 	head = readFile("head.html")
 	footer = readFile("footer.html")
 	learning := assemblePage("Learning", readFile("learning.html"))
-	posts := readPosts(head, footer)
+	posts := readPosts()
 
 	postsList := "<ul class=posts>"
 	for _, post := range posts {
