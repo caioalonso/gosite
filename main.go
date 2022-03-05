@@ -104,13 +104,13 @@ func readPosts() (posts []Post) {
 		metadata := meta.Get(context)
 		posts[i].Title = fmt.Sprintf("%v", metadata["title"])
 		posts[i].HTMLContent = buf.String()
-		posts[i].HTML = assemblePage(posts[i].Title, posts[i].HTMLContent)
 		layout := "2006-01-02"
 		date, err := time.Parse(layout, fmt.Sprintf("%v", metadata["date"]))
 		if err != nil {
 			log.Fatal(err)
 		}
 		posts[i].Date = date
+		posts[i].HTML = assemblePostPage(&posts[i])
 		switch reflect.TypeOf(metadata["aliases"]).Kind() {
 		case reflect.Slice:
 			s := reflect.ValueOf(metadata["aliases"])
@@ -130,6 +130,15 @@ func readPosts() (posts []Post) {
 func assemblePage(title, content string) string {
 	headWithTitle := strings.Replace(head, "$TITLE", title, 1)
 	return headWithTitle + content + footer
+}
+
+func assemblePostPage(post *Post) string {
+	content := "<article>"
+	content += "<h2>" + post.Title + "</h2>"
+	content += fmt.Sprintf("<time datetime=%v>%v</time>", post.Date.Format("2006-01-02"), post.Date.Format("January 2, 2006"))
+	content += post.HTMLContent
+	content += "</article>"
+	return assemblePage(post.Title, content)
 }
 
 func atomFeed(posts []Post) (feed string) {
