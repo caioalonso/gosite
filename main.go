@@ -90,8 +90,8 @@ func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	comment := Comment{
-		Name: name,
-		Body: body,
+		Name: html.EscapeString(name),
+		Body: html.EscapeString(body),
 		Date: time.Now(),
 	}
 
@@ -121,8 +121,8 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	comment := Comment{
-		Name: r.FormValue("name"),
-		Body: r.FormValue("body"),
+		Name: html.EscapeString(name),
+		Body: html.EscapeString(body),
 		Date: time.Now(),
 	}
 
