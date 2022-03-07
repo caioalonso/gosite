@@ -35,9 +35,16 @@ type Post struct {
 	HTMLContent string
 	HTML        string
 	Aliases     []string
+	Comments    []Comment
 }
 
-var postsAliases map[string]Post
+type Comment struct {
+	Name string
+	Body string
+	Date time.Time
+}
+
+var postsAliases map[string]*Post
 var index string
 var head string
 var footer string
@@ -62,6 +69,67 @@ func PostsWithDateHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
+	// Reject if the request is not a POST
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	vars := mux.Vars(r)
+	post := postsAliases["/posts/"+vars["post"]]
+
+	name := r.FormValue("name")
+	body := r.FormValue("body")
+
+	if body == "" || name == "" {
+		http.Error(w, "Missing name or body", http.StatusBadRequest)
+		return
+	}
+
+	comment := Comment{
+		Name: name,
+		Body: body,
+		Date: time.Now(),
+	}
+
+	post.Comments = append(post.Comments, comment)
+	post.HTML = assemblePostPage(post)
+	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
+	return
+}
+
+func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
+	// Reject if the request is not a POST
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	vars := mux.Vars(r)
+	postAlias := "/" + vars["year"] + "/" + vars["month"] + "/" + vars["day"] + "/" + vars["post"]
+	post := postsAliases[postAlias]
+
+	name := r.FormValue("name")
+	body := r.FormValue("body")
+
+	if body == "" || name == "" {
+		http.Error(w, "Missing name or body", http.StatusBadRequest)
+		return
+	}
+
+	comment := Comment{
+		Name: r.FormValue("name"),
+		Body: r.FormValue("body"),
+		Date: time.Now(),
+	}
+
+	post.Comments = append(post.Comments, comment)
+	post.HTML = assemblePostPage(post)
+	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
+	return
 }
 
 func catchAllHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +178,6 @@ func readPosts() (posts []Post) {
 			log.Fatal(err)
 		}
 		posts[i].Date = date
-		posts[i].HTML = assemblePostPage(&posts[i])
 		switch reflect.TypeOf(metadata["aliases"]).Kind() {
 		case reflect.Slice:
 			s := reflect.ValueOf(metadata["aliases"])
@@ -118,6 +185,7 @@ func readPosts() (posts []Post) {
 				posts[i].Aliases = append(posts[i].Aliases, fmt.Sprintf("%v", s.Index(j)))
 			}
 		}
+		posts[i].HTML = assemblePostPage(&posts[i])
 	}
 
 	sort.SliceStable(posts, func(i, j int) bool {
@@ -143,6 +211,19 @@ func assemblePostPage(post *Post) string {
 	content += fmt.Sprintf("<time datetime=%v>%v</time>", post.Date.Format("2006-01-02"), post.Date.Format("January 2, 2006"))
 	content += post.HTMLContent
 	content += "</article>"
+	content += "<h2>Comments</h2>"
+	content += "<div id=comments>"
+	for i, comment := range post.Comments {
+		content += "<div class=comment>"
+		content += fmt.Sprintf("<p><strong>#%v %v</strong> <time datetime=%v>%v</time></p>", i+1, comment.Name, comment.Date.Format("2006-01-02"), comment.Date.Format("January 2, 2006"))
+		content += fmt.Sprintf("<p>%v</p>", comment.Body)
+		content += "</div>"
+	}
+	content += "</div>"
+	content += "<form action=\"" + post.Aliases[0] + "/comment\" method=post>"
+	content += "<input type=text name=name placeholder=Name><br>"
+	content += "<textarea name=body placeholder=Comment rows=10 cols=40></textarea><br>"
+	content += "<input type=submit value=Comment>"
 	return assemblePage(post.Title, content)
 }
 
@@ -196,17 +277,19 @@ func main() {
 
 	atom := atomFeed(posts)
 
-	postsAliases = make(map[string]Post)
+	postsAliases = make(map[string]*Post)
 	for _, post := range posts {
 		for _, alias := range post.Aliases {
-			postsAliases[alias] = post
+			postsAliases[alias] = &post
 		}
 	}
 
 	r.HandleFunc("/posts/{post}", PostsHandler)
 	r.HandleFunc("/posts/{post}/", PostsHandler)
+	r.HandleFunc("/posts/{post}/comment", NewCommentHandler)
 	// Legacy URLs I want to maintain
 	r.HandleFunc("/{year}/{month}/{day}/{post}", PostsWithDateHandler)
+	r.HandleFunc("/{year}/{month}/{day}/{post}", NewCommentWithDateHandler)
 
 	r.HandleFunc("/index.xml", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprintf(w, atom)
