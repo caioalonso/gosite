@@ -379,7 +379,7 @@ func atomFeed(posts []Post) (feed string) {
 		feed += "<entry>\n"
 		feed += "<title>" + posts[i].Title + "</title>\n"
 		feed += "<link href=\"https://caioalonso.com" + posts[i].Aliases[0] + "\"/>\n"
-		feed += "<id>https://caioalonso.com" + posts[i].Aliases[0] + "</id>\n"
+		feed += "<id>" + strconv.Itoa(posts[i].Id) + "</id>\n"
 		feed += "<updated>" + posts[i].Date.Format("2006-01-02T15:04:05Z") + "</updated>\n"
 		feed += "<summary>" + html.EscapeString(posts[i].HTMLContent) + "</summary>\n"
 		feed += "</entry>\n"
