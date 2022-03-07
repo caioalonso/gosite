@@ -415,9 +415,9 @@ func main() {
 	atom := atomFeed(posts)
 
 	postsAliases = make(map[string]*Post)
-	for _, post := range posts {
-		for _, alias := range post.Aliases {
-			postsAliases[alias] = &post
+	for i, _ := range posts {
+		for _, alias := range posts[i].Aliases {
+			postsAliases[alias] = &posts[i]
 		}
 	}
 
