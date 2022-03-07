@@ -1,4 +1,5 @@
 ---
+id: 3
 title: Running PowerTOP on boot on Void Linux
 date: 2018-11-05
 aliases:

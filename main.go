@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +30,7 @@ func readFile(fileName string) string {
 }
 
 type Post struct {
+	Id          int
 	Filename    string
 	Title       string
 	Date        time.Time
@@ -39,6 +42,7 @@ type Post struct {
 }
 
 type Comment struct {
+	Id   int
 	Name string
 	Body string
 	Date time.Time
@@ -89,15 +93,30 @@ func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(body) > 1024 {
+		http.Error(w, "Body is too long", http.StatusBadRequest)
+		return
+	}
+
+	if len(name) > 64 {
+		http.Error(w, "Name is too long", http.StatusBadRequest)
+		return
+	}
+
+	name = strings.TrimSpace(html.EscapeString(name))
+	body = strings.TrimSpace(html.EscapeString(body))
+
 	comment := Comment{
-		Name: html.EscapeString(name),
-		Body: html.EscapeString(body),
+		Id:   len(post.Comments) + 1,
+		Name: name,
+		Body: body,
 		Date: time.Now(),
 	}
 
 	post.Comments = append(post.Comments, comment)
 	post.HTML = assemblePostPage(post)
 	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
+	go saveComments(post)
 	return
 }
 
@@ -120,15 +139,30 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(body) > 1024 {
+		http.Error(w, "Body is too long", http.StatusBadRequest)
+		return
+	}
+
+	if len(name) > 64 {
+		http.Error(w, "Name is too long", http.StatusBadRequest)
+		return
+	}
+
+	name = strings.TrimSpace(html.EscapeString(name))
+	body = strings.TrimSpace(html.EscapeString(body))
+
 	comment := Comment{
-		Name: html.EscapeString(name),
-		Body: html.EscapeString(body),
+		Id:   len(post.Comments) + 1,
+		Name: name,
+		Body: body,
 		Date: time.Now(),
 	}
 
 	post.Comments = append(post.Comments, comment)
 	post.HTML = assemblePostPage(post)
 	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
+	go saveComments(post)
 	return
 }
 
@@ -156,6 +190,54 @@ func parseMarkdown(markdownContent string) (HTML string, metadata map[string]int
 	return
 }
 
+func closeFile(f *os.File) {
+	err := f.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func saveComments(post *Post) {
+	commentsPath := filepath.Join("comments", strconv.Itoa(post.Id))
+	_, err := os.Stat(commentsPath)
+	if os.IsNotExist(err) {
+		mkdirErr := os.MkdirAll(commentsPath, 0755)
+		if mkdirErr != nil {
+			log.Fatal(mkdirErr)
+		}
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, comment := range post.Comments {
+		commentPath := filepath.Join(commentsPath, strconv.Itoa(comment.Id)+".txt")
+		_, err := os.Stat(commentPath)
+		if os.IsNotExist(err) {
+			commentFile, err := os.Create(commentPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer closeFile(commentFile)
+			_, writeErr := commentFile.WriteString(comment.Date.Format(time.RFC3339) + "\n")
+			if writeErr != nil {
+				log.Fatal(writeErr)
+			}
+			_, writeErr = commentFile.WriteString(comment.Name + "\n")
+			if writeErr != nil {
+				log.Fatal(writeErr)
+			}
+			_, writeErr = commentFile.WriteString(comment.Body)
+			if writeErr != nil {
+				log.Fatal(writeErr)
+			}
+		} else if err != nil {
+			log.Fatal(err)
+		}
+
+	}
+}
+
 func readPosts() (posts []Post) {
 	err := filepath.Walk("posts", func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -171,9 +253,12 @@ func readPosts() (posts []Post) {
 		posts[i].Markdown = readFile(posts[i].Filename)
 		var metadata map[string]interface{}
 		posts[i].HTMLContent, metadata = parseMarkdown(posts[i].Markdown)
+		posts[i].Id, err = strconv.Atoi(fmt.Sprintf("%v", metadata["id"]))
+		if err != nil {
+			log.Fatal(err)
+		}
 		posts[i].Title = fmt.Sprintf("%v", metadata["title"])
-		layout := "2006-01-02"
-		date, err := time.Parse(layout, fmt.Sprintf("%v", metadata["date"]))
+		date, err := time.Parse("2006-01-02", fmt.Sprintf("%v", metadata["date"]))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -185,12 +270,63 @@ func readPosts() (posts []Post) {
 				posts[i].Aliases = append(posts[i].Aliases, fmt.Sprintf("%v", s.Index(j)))
 			}
 		}
+		posts[i].Comments = readComments(posts[i])
 		posts[i].HTML = assemblePostPage(&posts[i])
 	}
 
 	sort.SliceStable(posts, func(i, j int) bool {
 		return posts[i].Date.Before(posts[j].Date)
 	})
+
+	return
+}
+
+func readComments(post Post) (comments []Comment) {
+	commentsPath := filepath.Join("comments", strconv.Itoa(post.Id))
+	_, err := os.Stat(commentsPath)
+	if os.IsNotExist(err) {
+		return
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	err = filepath.Walk(commentsPath, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			commentFile, err := os.Open(path)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer closeFile(commentFile)
+			comment := Comment{}
+			id := strings.Split(path, ".")[]
+			fmt.Println(id)
+			comment.Id, err = strconv.Atoi(id)
+			if err != nil {
+				log.Fatal(err)
+			}
+			scanner := bufio.NewScanner(commentFile)
+			lineNumber := 0
+			for scanner.Scan() {
+				switch lineNumber {
+				case 0:
+					comment.Date, err = time.Parse(time.RFC3339, scanner.Text())
+					if err != nil {
+						log.Fatal(err)
+					}
+				case 1:
+					comment.Name = scanner.Text()
+				default:
+					comment.Body += scanner.Text()
+				}
+				lineNumber++
+			}
+			comments = append(comments, comment)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return
 }
@@ -221,8 +357,8 @@ func assemblePostPage(post *Post) string {
 	}
 	content += "</div>"
 	content += "<form action=\"" + post.Aliases[0] + "/comment\" method=post>"
-	content += "<input type=text name=name placeholder=Name><br>"
-	content += "<textarea name=body placeholder=Comment rows=10 cols=40></textarea><br>"
+	content += "<input type=text name=name placeholder=Name required minlength=1 maxlength=50><br>"
+	content += "<textarea name=body placeholder=Comment rows=8 cols=40 required minlength=1 maxlength=1024></textarea><br>"
 	content += "<input type=submit value=Comment>"
 	return assemblePage(post.Title, content)
 }

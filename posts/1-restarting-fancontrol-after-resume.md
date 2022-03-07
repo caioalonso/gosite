@@ -1,4 +1,5 @@
 ---
+id: 1
 title: Restarting fancontrol after resume from sleep/suspend
 date: 2019-01-23
 aliases:

@@ -1,4 +1,5 @@
 ---
+id: 4
 title: Self-hosted email with EC2, Docker and Mailu
 date: 2018-10-27
 aliases:

@@ -1,4 +1,5 @@
 ---
+id: 2
 title: Personal React App Starter for Babel 7, Webpack 4
 date: 2018-11-27
 aliases:
