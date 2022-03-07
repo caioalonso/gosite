@@ -277,7 +277,7 @@ func readPosts() (posts []Post) {
 	}
 
 	sort.SliceStable(posts, func(i, j int) bool {
-		return posts[i].Date.Before(posts[j].Date)
+		return posts[j].Date.Before(posts[i].Date)
 	})
 
 	return
