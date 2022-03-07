@@ -105,6 +105,7 @@ func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	name = strings.TrimSpace(html.EscapeString(name))
 	body = strings.TrimSpace(html.EscapeString(body))
+	body = strings.Replace(body, "\r", "", -1)
 
 	comment := Comment{
 		Id:   len(post.Comments) + 1,
@@ -151,6 +152,7 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	name = strings.TrimSpace(html.EscapeString(name))
 	body = strings.TrimSpace(html.EscapeString(body))
+	body = strings.Replace(body, "\r", "", -1)
 
 	comment := Comment{
 		Id:   len(post.Comments) + 1,
@@ -298,8 +300,7 @@ func readComments(post Post) (comments []Comment) {
 			}
 			defer closeFile(commentFile)
 			comment := Comment{}
-			id := strings.Split(path, ".")[]
-			fmt.Println(id)
+			id := strings.Split(filepath.Base(path), ".")[0]
 			comment.Id, err = strconv.Atoi(id)
 			if err != nil {
 				log.Fatal(err)
@@ -316,7 +317,7 @@ func readComments(post Post) (comments []Comment) {
 				case 1:
 					comment.Name = scanner.Text()
 				default:
-					comment.Body += scanner.Text()
+					comment.Body += scanner.Text() + "\n"
 				}
 				lineNumber++
 			}
@@ -352,7 +353,7 @@ func assemblePostPage(post *Post) string {
 	for i, comment := range post.Comments {
 		content += "<div class=comment>"
 		content += fmt.Sprintf("<p><strong>#%v %v</strong> <time datetime=%v>%v</time></p>", i+1, comment.Name, comment.Date.Format("2006-01-02"), comment.Date.Format("January 2, 2006"))
-		content += fmt.Sprintf("<p>%v</p>", comment.Body)
+		content += fmt.Sprintf("<p>%v</p>", strings.Replace(strings.TrimSpace(comment.Body), "\n", "<br>", -1))
 		content += "</div>"
 	}
 	content += "</div>"
