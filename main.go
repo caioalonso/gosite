@@ -11,6 +11,7 @@ import (
 	"html"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -454,6 +455,14 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	})
+
+	r.HandleFunc("/ip", func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr := r.Header.Get("X-Forwarded-For")
+		if remoteAddr == "" {
+			remoteAddr, _, _ = net.SplitHostPort(r.RemoteAddr)
+		}
+		fmt.Fprintf(w, "%s\n", remoteAddr)
 	})
 
 	homeDir, err := os.UserHomeDir()
