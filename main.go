@@ -4,10 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/yuin/goldmark"
-	meta "github.com/yuin/goldmark-meta"
-	"github.com/yuin/goldmark/parser"
 	"html"
 	"io/ioutil"
 	"log"
@@ -20,6 +16,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/yuin/goldmark"
+	meta "github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/parser"
 )
 
 func readFile(fileName string) string {
@@ -70,9 +71,13 @@ func PostsWithDateHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	alias := "/" + vars["year"] + "/" + vars["month"] + "/" + vars["day"] + "/" + vars["post"]
 
-	_, err := fmt.Fprintf(w, postsAliases[alias].HTML)
-	if err != nil {
-		log.Fatal(err)
+	if _, ok := postsAliases[alias]; ok {
+		_, err := fmt.Fprintf(w, postsAliases[alias].HTML)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
