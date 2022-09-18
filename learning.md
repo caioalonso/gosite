@@ -5,6 +5,9 @@ draft: false
 
 I had the idea of logging all the learning stuff I read/watch for future reference. No idea if this is useful but it can't hurt to try.
 
+### Sep/22
+- [Writing C software without the standard library (Gopher)](gopher://sdf.org:70/0/users/loli/programming/c_without_standard_library_linux.txt)
+
 ### Feb/22
 - [How ISO C became unusable for operating systems development](https://arxiv.org/abs/2201.07845)
 
