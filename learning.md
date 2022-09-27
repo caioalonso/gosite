@@ -6,6 +6,7 @@ draft: false
 I had the idea of logging all the learning stuff I read/watch for future reference. No idea if this is useful but it can't hurt to try.
 
 ### Sep/22
+- [Remzi Lectures on Operating Systems: Three Easy Pieces](https://pages.cs.wisc.edu/~remzi/Classes/537/Spring2018/Discussion/videos.html)
 - [Writing C software without the standard library (Gopher)](gopher://sdf.org:70/0/users/loli/programming/c_without_standard_library_linux.txt)
 
 ### Feb/22
