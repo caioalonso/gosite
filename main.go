@@ -392,6 +392,14 @@ func atomFeed(posts []Post) (feed string) {
 	return
 }
 
+func ipHandler(w http.ResponseWriter, r *http.Request) {
+	remoteAddr := r.Header.Get("X-Forwarded-For")
+	if remoteAddr == "" {
+		remoteAddr, _, _ = net.SplitHostPort(r.RemoteAddr)
+	}
+	fmt.Fprintf(w, "%s\n", remoteAddr)
+}
+
 func main() {
 	markdown = goldmark.New(
 		goldmark.WithExtensions(
@@ -459,21 +467,8 @@ func main() {
 		}
 	})
 
-	r.HandleFunc("/ip", func(w http.ResponseWriter, r *http.Request) {
-		remoteAddr := r.Header.Get("X-Forwarded-For")
-		if remoteAddr == "" {
-			remoteAddr, _, _ = net.SplitHostPort(r.RemoteAddr)
-		}
-		fmt.Fprintf(w, "%s\n", remoteAddr)
-	})
-
-	r.HandleFunc("/ip/", func(w http.ResponseWriter, r *http.Request) {
-		remoteAddr := r.Header.Get("X-Forwarded-For")
-		if remoteAddr == "" {
-			remoteAddr, _, _ = net.SplitHostPort(r.RemoteAddr)
-		}
-		fmt.Fprintf(w, "%s\n", remoteAddr)
-	})
+	r.HandleFunc("/ip", ipHandler)
+	r.HandleFunc("/ip/", ipHandler)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
