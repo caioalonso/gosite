@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"html"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -24,7 +23,7 @@ import (
 )
 
 func readFile(fileName string) string {
-	content, err := ioutil.ReadFile(fileName)
+	content, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,7 +110,7 @@ func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	name = strings.TrimSpace(html.EscapeString(name))
 	body = strings.TrimSpace(html.EscapeString(body))
-	body = strings.Replace(body, "\r", "", -1)
+	body = strings.ReplaceAll(body, "\r", "")
 
 	comment := Comment{
 		Id:   len(post.Comments) + 1,
@@ -124,7 +123,6 @@ func NewCommentHandler(w http.ResponseWriter, r *http.Request) {
 	post.HTML = assemblePostPage(post)
 	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
 	go saveComments(post)
-	return
 }
 
 func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +156,7 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	name = strings.TrimSpace(html.EscapeString(name))
 	body = strings.TrimSpace(html.EscapeString(body))
-	body = strings.Replace(body, "\r", "", -1)
+	body = strings.ReplaceAll(body, "\r", "")
 
 	comment := Comment{
 		Id:   len(post.Comments) + 1,
@@ -171,18 +169,18 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 	post.HTML = assemblePostPage(post)
 	http.Redirect(w, r, post.Aliases[0], http.StatusSeeOther)
 	go saveComments(post)
-	return
 }
 
 func catchAllHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-		_, err := fmt.Fprintf(w, index)
+	switch {
+	case r.URL.Path == "/" || r.URL.Path == "/index.html":
+		_, err := fmt.Fprint(w, index)
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else if strings.Contains(r.URL.Path, "/.") {
+	case strings.Contains(r.URL.Path, "/."):
 		w.WriteHeader(http.StatusNotFound)
-	} else {
+	default:
 		fsHandle.ServeHTTP(w, r)
 	}
 }
@@ -271,8 +269,7 @@ func readPosts() (posts []Post) {
 			log.Fatal(err)
 		}
 		posts[i].Date = date
-		switch reflect.TypeOf(metadata["aliases"]).Kind() {
-		case reflect.Slice:
+		if reflect.TypeOf(metadata["aliases"]).Kind() == reflect.Slice {
 			s := reflect.ValueOf(metadata["aliases"])
 			for j := 0; j < s.Len(); j++ {
 				posts[i].Aliases = append(posts[i].Aliases, fmt.Sprintf("%v", s.Index(j)))
@@ -359,7 +356,7 @@ func assemblePostPage(post *Post) string {
 	for i, comment := range post.Comments {
 		content += "<div class=comment>"
 		content += fmt.Sprintf("<p><strong>#%v %v</strong> <time datetime=%v>%v</time></p>", i+1, comment.Name, comment.Date.Format("2006-01-02"), comment.Date.Format("January 2, 2006"))
-		content += fmt.Sprintf("<p>%v</p>", strings.Replace(strings.TrimSpace(comment.Body), "\n", "<br>", -1))
+		content += fmt.Sprintf("<p>%v</p>", strings.ReplaceAll(strings.TrimSpace(comment.Body), "\n", "<br>"))
 		content += "</div>"
 	}
 	content += "</div>"
@@ -421,7 +418,7 @@ func main() {
 	atom := atomFeed(posts)
 
 	postsAliases = make(map[string]*Post)
-	for i, _ := range posts {
+	for i := range posts {
 		for _, alias := range posts[i].Aliases {
 			postsAliases[alias] = &posts[i]
 		}
@@ -435,28 +432,28 @@ func main() {
 	r.HandleFunc("/{year}/{month}/{day}/{post}", NewCommentWithDateHandler)
 
 	r.HandleFunc("/index.xml", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprintf(w, atom)
+		_, err := fmt.Fprint(w, atom)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
 
 	r.HandleFunc("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprintf(w, atom)
+		_, err := fmt.Fprint(w, atom)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
 
 	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprintf(w, learning)
+		_, err := fmt.Fprint(w, learning)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
 
 	r.HandleFunc("/learning/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprintf(w, learning)
+		_, err := fmt.Fprint(w, learning)
 		if err != nil {
 			log.Fatal(err)
 		}
