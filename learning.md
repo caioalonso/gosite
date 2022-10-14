@@ -6,6 +6,7 @@ draft: false
 I had the idea of logging all the learning stuff I read/watch for future reference. No idea if this is useful but it can't hurt to try.
 
 ### Oct/22
+- [Solving the Right Problems for Engine Programmers - Mike Acton (TGC 2017)](https://www.youtube.com/watch?v=4B00hV3wmMY)
 - [Mike Acton’s Expectations of Professional Software Engineers](https://adamj.eu/tech/2022/06/17/mike-actons-expectations-of-professional-software-engineers/) ([Video](https://www.youtube.com/watch?v=cV5HArLYajE))
 
 ### Sep/22
