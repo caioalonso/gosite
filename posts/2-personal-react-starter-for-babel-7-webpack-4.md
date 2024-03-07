@@ -2,6 +2,7 @@
 id: 2
 title: Personal React App Starter for Babel 7, Webpack 4
 date: 2018-11-27
+hidden: true
 aliases:
     - /posts/personal-react-starter-for-babel-7-webpack-4
     - /2018/11/27/personal-react-starter-for-babel-7-webpack-4.html

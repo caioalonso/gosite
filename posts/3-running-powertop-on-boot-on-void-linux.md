@@ -2,6 +2,7 @@
 id: 3
 title: Running PowerTOP on boot on Void Linux
 date: 2018-11-05
+hidden: true
 aliases:
     - /posts/running-powertop-on-boot-on-void-linux
     - /2018/11/05/running-powertop-on-boot-on-void-linux.html

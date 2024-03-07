@@ -2,6 +2,7 @@
 id: 4
 title: Self-hosted email with EC2, Docker and Mailu
 date: 2018-10-27
+hidden: true
 aliases:
     - /posts/self-hosted-email-with-ec2-docker-mailu
     - /2018/10/27/self-hosted-email-with-ec2-docker-mailu.html

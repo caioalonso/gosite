@@ -40,6 +40,7 @@ type Post struct {
 	HTML        string
 	Aliases     []string
 	Comments    []Comment
+	Hidden      bool
 }
 
 type Comment struct {
@@ -269,6 +270,7 @@ func readPosts() (posts []Post) {
 			log.Fatal(err)
 		}
 		posts[i].Date = date
+		posts[i].Hidden = fmt.Sprintf("%v", metadata["hidden"]) == "true"
 		if reflect.TypeOf(metadata["aliases"]).Kind() == reflect.Slice {
 			s := reflect.ValueOf(metadata["aliases"])
 			for j := 0; j < s.Len(); j++ {
@@ -417,6 +419,9 @@ func main() {
 
 	postsList := "<ul class=posts>"
 	for _, post := range posts {
+		if post.Hidden {
+			continue
+		}
 		postsList += fmt.Sprintf(
 			"<li>\n<time datetime=%v>%v</time>\n<a href=%v>%v</a>\n</li>", post.Date.Format("2006-01-02"), post.Date.Format("January 2, 2006"), post.Aliases[0], post.Title)
 	}
@@ -485,6 +490,8 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+
+	fmt.Println("Listening on http://0.0.0.0:8000")
 
 	log.Fatal(srv.ListenAndServe())
 }

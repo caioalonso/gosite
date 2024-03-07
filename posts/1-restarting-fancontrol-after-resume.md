@@ -2,6 +2,7 @@
 id: 1
 title: Restarting fancontrol after resume from sleep/suspend
 date: 2019-01-23
+hidden: true
 aliases:
     - /posts/restarting-fancontrol-after-resume
     - /2019/01/23/restarting-fancontrol-after-resume.html
