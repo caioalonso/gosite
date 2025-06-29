@@ -173,17 +173,7 @@ func NewCommentWithDateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func catchAllHandler(w http.ResponseWriter, r *http.Request) {
-	switch {
-	case r.URL.Path == "/" || r.URL.Path == "/index.html":
-		_, err := fmt.Fprint(w, index)
-		if err != nil {
-			log.Fatal(err)
-		}
-	case strings.Contains(r.URL.Path, "/."):
-		w.WriteHeader(http.StatusNotFound)
-	default:
-		fsHandle.ServeHTTP(w, r)
-	}
+	fsHandle.ServeHTTP(w, r)
 }
 
 func parseMarkdown(markdownContent string) (HTML string, metadata map[string]interface{}) {
@@ -453,20 +443,6 @@ func main() {
 
 	r.HandleFunc("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprint(w, atom)
-		if err != nil {
-			log.Fatal(err)
-		}
-	})
-
-	r.HandleFunc("/learning", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprint(w, learning)
-		if err != nil {
-			log.Fatal(err)
-		}
-	})
-
-	r.HandleFunc("/learning/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprint(w, learning)
 		if err != nil {
 			log.Fatal(err)
 		}
