@@ -5,6 +5,7 @@ draft: false
 
 I had the idea of logging all the learning stuff I read/watch for future reference. No idea if this is useful but it can't hurt to try.
 
+- [Casey Muratori – The Big OOPs: Anatomy of a Thirty-five-year Mistake – BSC 2025](https://www.youtube.com/watch?v=wo84LFzx5nI)
 - [{n} times faster than C](https://owen.cafe/posts/six-times-faster-than-c/)
 - [Computer, Enhance! a performance course by Casey Muratori](https://www.computerenhance.com/)
 - [Solving the Right Problems for Engine Programmers - Mike Acton (TGC 2017)](https://www.youtube.com/watch?v=4B00hV3wmMY)
